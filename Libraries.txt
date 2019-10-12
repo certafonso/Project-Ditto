@@ -1,0 +1,2 @@
+InstagramAPI - https://github.com/LevPasha/Instagram-API-python
+InstaLoader - https://instaloader.github.io/as-module.html
