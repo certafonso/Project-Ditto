@@ -1,5 +1,27 @@
 from matplotlib.image import imread
 import numpy as np
+import os
+import csv
+
+def ProcessData(path, output):
+    
+    images = []
+    for filename in os.listdir(path): # gets path to all images in directory
+        if filename.endswith(".jpg"):
+            images.append(path + filename)
+
+    dataset = [["Mean Value", "Mean Saturation", "Mean Value", "RMS Contrast"]]
+
+    print("Processing...")
+    for image in images:
+        dataset.append(ProcessImage(image))
+        print(image + " sucessfully processed")
+    print("Done processing")
+
+    with open(output, "w") as file:
+        writer = csv.writer(file)
+        writer.writerows(dataset)
+    print("CSV created")
 
 def ProcessImage(image_path):
     image = imread(image_path)  # opens image
@@ -70,4 +92,4 @@ def CalculateRMSContrast(image_HSV, mean_value, pixel_count):
     return RMS_Contrast
 
 if __name__ == "__main__":
-    print(ProcessImage("./test-image.jpg"))
+    ProcessData("./certafonso/", "DataSet")
