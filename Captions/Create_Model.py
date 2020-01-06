@@ -71,8 +71,8 @@ def generate_text(model, start_string):
 
   return (start_string + ''.join(text_generated))
 
-if __name__ == "__main__":
-    path = "./Captions.txt"
+def Create_Model():
+    path = "./Captions/Captions.txt"
 
     text = open(path, 'rb').read().decode(encoding='utf-8') #Reads file and decodes it
 
@@ -81,10 +81,13 @@ if __name__ == "__main__":
 
     vocab = sorted(set(text))
     print ('{} unique characters'.format(len(vocab)))
+    
+    # saving vocab to a file that can be used later
+    with open('vocab.txt', 'w', encoding="utf8") as file:
+        for item in vocab:
+            file.write(item)
 
-    # mapping every unique caracter
-    char2idx = {u:i for i, u in enumerate(vocab)}
-    idx2char = np.array(vocab)
+    char2idx, idx2char = mapping(vocab)
 
     text_as_int = np.array([char2idx[c] for c in text])
 
@@ -197,3 +200,18 @@ if __name__ == "__main__":
     model.summary()
 
     print(generate_text(model, start_string=u"Olá "))
+
+def import_mapping(file):
+    file.read().decode(encoding='utf-8') #Reads file and decodes it
+
+    vocab = sorted(set(text))
+    print ('{} unique characters'.format(len(vocab)))
+
+def mapping(vocab):
+    # mapping every unique caracter
+    char2idx = {u:i for i, u in enumerate(vocab)}
+    idx2char = np.array(vocab)
+    return char2idx, idx2char
+
+if __name__ == "__main__":
+    Create_Model()
