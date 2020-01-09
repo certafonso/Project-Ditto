@@ -34,47 +34,9 @@ def build_model(vocab_size, embedding_dim, rnn_units, batch_size):
 def loss(labels, logits):
     return tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
 
-def generate_text(model, start_string):
-  # Evaluation step (generating text using the learned model)
+def Create_Model(source, seq_length, EPOCHS, checkpoint_dir = './training_checkpoints', vocab_dir = './vocab.txt'):
 
-  # Number of characters to generate
-  num_generate = 1000
-
-  # Converting our start string to numbers (vectorizing)
-  input_eval = [char2idx[s] for s in start_string]
-  input_eval = tf.expand_dims(input_eval, 0)
-
-  # Empty string to store our results
-  text_generated = []
-
-  # Low temperatures results in more predictable text.
-  # Higher temperatures results in more surprising text.
-  # Experiment to find the best setting.
-  temperature = 1.0
-
-  # Here batch size == 1
-  model.reset_states()
-  for i in range(num_generate):
-      predictions = model(input_eval)
-      # remove the batch dimension
-      predictions = tf.squeeze(predictions, 0)
-
-      # using a categorical distribution to predict the word returned by the model
-      predictions = predictions / temperature
-      predicted_id = tf.random.categorical(predictions, num_samples=1)[-1,0].numpy()
-
-      # We pass the predicted word as the next input to the model
-      # along with the previous hidden state
-      input_eval = tf.expand_dims([predicted_id], 0)
-
-      text_generated.append(idx2char[predicted_id])
-
-  return (start_string + ''.join(text_generated))
-
-def Create_Model():
-    path = "./Captions/Captions.txt"
-
-    text = open(path, 'rb').read().decode(encoding='utf-8') #Reads file and decodes it
+    text = open(source, 'rb').read().decode(encoding='utf-8') #Reads file and decodes it
 
     print ('Length of text: {} characters'.format(len(text)))
     print(text[:250])
@@ -83,7 +45,7 @@ def Create_Model():
     print ('{} unique characters'.format(len(vocab)))
     
     # saving vocab to a file that can be used later
-    with open('vocab.txt', 'w', encoding="utf8") as file:
+    with open(vocab_dir, 'w', encoding="utf8") as file:
         for item in vocab:
             file.write(item)
 
@@ -98,7 +60,6 @@ def Create_Model():
 
     print ('{} ---- characters mapped to int ---- > {}'.format(repr(text[:13]), text_as_int[:13]))
 
-    seq_length = 50 # Maximum length of the input
     examples_per_epoch = len(text)//(seq_length+1)
 
     char_dataset = tf.data.Dataset.from_tensor_slices(text_as_int) # creates input slices
@@ -173,10 +134,7 @@ def Create_Model():
     print("Prediction shape: ", example_batch_predictions.shape, " # (batch_size, sequence_length, vocab_size)")
     print("scalar_loss:      ", example_batch_loss.numpy().mean())
 
-    model.compile(optimizer='adam', loss=loss)
-
-    # Directory where the checkpoints will be saved
-    checkpoint_dir = './training_checkpoints'
+    model.compile(optimizer='adam', loss=loss)    
 
     # Name of the checkpoint files
     checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_{epoch}")
@@ -185,27 +143,17 @@ def Create_Model():
         filepath=checkpoint_prefix,
         save_weights_only=True)
 
-    EPOCHS=200
-
     history = model.fit(dataset, epochs=EPOCHS, callbacks=[checkpoint_callback])
 
-    tf.train.latest_checkpoint(checkpoint_dir)
-
-    model = build_model(vocab_size, embedding_dim, rnn_units, batch_size=1)
-
-    model.load_weights(tf.train.latest_checkpoint(checkpoint_dir))
-
-    model.build(tf.TensorShape([1, None]))
-
-    model.summary()
-
-    print(generate_text(model, start_string=u"Olá "))
-
-def import_mapping(file):
-    file.read().decode(encoding='utf-8') #Reads file and decodes it
+def import_mapping(file_dir):
+    text = open(file_dir, 'rb').read().decode(encoding='utf-8') #Reads file and decodes it
 
     vocab = sorted(set(text))
     print ('{} unique characters'.format(len(vocab)))
+
+    vocab_size = len(vocab)
+    char2idx, idx2char = mapping(vocab)
+    return vocab_size, char2idx, idx2char
 
 def mapping(vocab):
     # mapping every unique caracter
@@ -214,4 +162,20 @@ def mapping(vocab):
     return char2idx, idx2char
 
 if __name__ == "__main__":
-    Create_Model()
+    from Generate_Caption import generate_text
+    
+    Create_Model("./Captions/Captions.txt", 50, 1, checkpoint_dir = './Captions/training_checkpoints', vocab_dir = './Captions/vocab.txt')
+
+    vocab_size, char2idx, idx2char = import_mapping('./Captions/vocab.txt')
+
+    tf.train.latest_checkpoint('./Captions/training_checkpoints')
+
+    model = build_model(vocab_size, embedding_dim = 256, rnn_units = 1024, batch_size=1)
+
+    model.load_weights(tf.train.latest_checkpoint('./Captions/training_checkpoints'))
+
+    model.build(tf.TensorShape([1, None]))
+
+    model.summary()
+
+    print(generate_text(model, start_string=u"Olá ", char2idx = char2idx, idx2char = idx2char))
