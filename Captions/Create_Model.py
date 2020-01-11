@@ -34,7 +34,7 @@ def build_model(vocab_size, embedding_dim, rnn_units, batch_size):
 def loss(labels, logits):
     return tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
 
-def Create_Model(source, seq_length, EPOCHS, checkpoint_dir = './training_checkpoints', vocab_dir = './vocab.txt'):
+def Create_Model(source, seq_length, vocab_dir = './vocab.txt'):
 
     text = open(source, 'rb').read().decode(encoding='utf-8') #Reads file and decodes it
 
@@ -106,10 +106,14 @@ def Create_Model(source, seq_length, EPOCHS, checkpoint_dir = './training_checkp
     rnn_units = 1024
 
     model = build_model(
-        vocab_size = len(vocab),
+        vocab_size = vocab_size,
         embedding_dim=embedding_dim,
         rnn_units=rnn_units,
         batch_size=BATCH_SIZE)
+
+    return model, dataset, idx2char, char2idx, vocab_size
+
+def train_model(model, dataset, EPOCHS, checkpoint_dir = './training_checkpoints', vocab_dir = './vocab.txt'):
 
     for input_example_batch, target_example_batch in dataset.take(1):
         example_batch_predictions = model(input_example_batch)
@@ -145,16 +149,6 @@ def Create_Model(source, seq_length, EPOCHS, checkpoint_dir = './training_checkp
 
     history = model.fit(dataset, epochs=EPOCHS, callbacks=[checkpoint_callback])
 
-def import_mapping(file_dir):
-    text = open(file_dir, 'rb').read().decode(encoding='utf-8') #Reads file and decodes it
-
-    vocab = sorted(set(text))
-    print ('{} unique characters'.format(len(vocab)))
-
-    vocab_size = len(vocab)
-    char2idx, idx2char = mapping(vocab)
-    return vocab_size, char2idx, idx2char
-
 def mapping(vocab):
     # mapping every unique caracter
     char2idx = {u:i for i, u in enumerate(vocab)}
@@ -162,13 +156,13 @@ def mapping(vocab):
     return char2idx, idx2char
 
 if __name__ == "__main__":
-    from Generate_Caption import generate_text
-    
-    Create_Model("./Captions/Captions.txt", 50, 1, checkpoint_dir = './Captions/training_checkpoints', vocab_dir = './Captions/vocab.txt')
+    from Generate_Caption import generate_text, import_mapping
 
-    vocab_size, char2idx, idx2char = import_mapping('./Captions/vocab.txt')
+    model, dataset, idx2char, char2idx, vocab_size = Create_Model("./Captions/Captions.txt", 50)
 
-    tf.train.latest_checkpoint('./Captions/training_checkpoints')
+    train_model(model, dataset, EPOCHS = 10, checkpoint_dir = './Captions/training_checkpoints', vocab_dir = './vocab.txt')
+
+    tf.train.latest_checkpoint('./Captions/training_checkpoints') 
 
     model = build_model(vocab_size, embedding_dim = 256, rnn_units = 1024, batch_size=1)
 
@@ -179,3 +173,4 @@ if __name__ == "__main__":
     model.summary()
 
     print(generate_text(model, start_string=u"Olá ", char2idx = char2idx, idx2char = idx2char))
+
