@@ -2,37 +2,17 @@ import os
 import numpy as np
 import tensorflow as tf
 
-def GetCaptions(path):
+def GetCaptions(posts_dir, captions_path):
     captions = []
-    for filename in os.listdir(path):
+    for filename in os.listdir(posts_dir):
         if filename.endswith(".txt"):
-            with open(path + filename, "r", encoding="utf8") as file:
+            with open(posts_dir + filename, "r", encoding="utf8") as file:
                 for line in file:
                     captions.append(line)
 
-    with open("Captions.txt","w+", encoding="utf8") as file:
+    with open(captions_path,"w+", encoding="utf8") as file:
         for caption in captions:
             file.write(caption + "\n")
-
-def split_input_target(chunk):
-    input_text = chunk[:-1]
-    target_text = chunk[1:]
-    return input_text, target_text
-
-def build_model(vocab_size, embedding_dim, rnn_units, batch_size):
-    model = tf.keras.Sequential([
-                                tf.keras.layers.Embedding(vocab_size, embedding_dim,
-                                batch_input_shape=[batch_size, None]),
-    tf.keras.layers.GRU(rnn_units,
-                        return_sequences=True,
-                        stateful=True,
-                        recurrent_initializer='glorot_uniform'),
-    tf.keras.layers.Dense(vocab_size)
-    ])
-    return model
-
-def loss(labels, logits):
-    return tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
 
 def Create_Model(source, seq_length, vocab_dir = './vocab.txt'):
 
@@ -145,9 +125,12 @@ def train_model(model, dataset, EPOCHS, checkpoint_dir = './training_checkpoints
 
     checkpoint_callback=tf.keras.callbacks.ModelCheckpoint(
         filepath=checkpoint_prefix,
-        save_weights_only=True)
+        save_weights_only=True,
+        period=100)
 
-    history = model.fit(dataset, epochs=EPOCHS, callbacks=[checkpoint_callback])
+    model.fit(dataset, epochs=EPOCHS, callbacks=[checkpoint_callback])
+
+    return model
 
 def mapping(vocab):
     # mapping every unique caracter
@@ -155,18 +138,39 @@ def mapping(vocab):
     idx2char = np.array(vocab)
     return char2idx, idx2char
 
-if __name__ == "__main__":
-    from Generate_Caption import generate_text, import_mapping
+def split_input_target(chunk):
+    input_text = chunk[:-1]
+    target_text = chunk[1:]
+    return input_text, target_text
 
-    model, dataset, idx2char, char2idx, vocab_size = Create_Model("./Captions/Captions.txt", 50)
+def build_model(vocab_size, embedding_dim, rnn_units, batch_size):
+    model = tf.keras.Sequential([
+                                tf.keras.layers.Embedding(vocab_size, embedding_dim,
+                                batch_input_shape=[batch_size, None]),
+    tf.keras.layers.GRU(rnn_units,
+                        return_sequences=True,
+                        stateful=True,
+                        recurrent_initializer='glorot_uniform'),
+    tf.keras.layers.Dense(vocab_size)
+    ])
+    return model
 
-    train_model(model, dataset, EPOCHS = 10, checkpoint_dir = './Captions/training_checkpoints', vocab_dir = './vocab.txt')
+def loss(labels, logits):
+    return tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
 
-    tf.train.latest_checkpoint('./Captions/training_checkpoints') 
+def Get_Model(posts_dir, captions_path, vocab_dir, checkpoint_dir):
+
+    GetCaptions(posts_dir, captions_path)
+
+    model, dataset, idx2char, char2idx, vocab_size = Create_Model(captions_path, 50, vocab_dir = vocab_dir)
+
+    train_model(model, dataset, EPOCHS = 10, checkpoint_dir = checkpoint_dir, vocab_dir = vocab_dir)
+
+    tf.train.latest_checkpoint(checkpoint_dir) 
 
     model = build_model(vocab_size, embedding_dim = 256, rnn_units = 1024, batch_size=1)
 
-    model.load_weights(tf.train.latest_checkpoint('./Captions/training_checkpoints'))
+    model.load_weights(tf.train.latest_checkpoint(checkpoint_dir))
 
     model.build(tf.TensorShape([1, None]))
 
@@ -174,3 +178,23 @@ if __name__ == "__main__":
 
     print(generate_text(model, start_string=u"Olá ", char2idx = char2idx, idx2char = idx2char))
 
+if __name__ == "__main__":
+    from Generate_Caption import generate_text, import_mapping
+
+    GetCaptions("./certafonso", "./Captions/Captions.txt")
+
+    model, dataset, idx2char, char2idx, vocab_size = Create_Model("./Captions/Captions.txt", 50)
+
+    train_model(model, dataset, EPOCHS = 10, checkpoint_dir = "./Captions/training_checkpoints_", vocab_dir = "./vocab.txt")
+
+    tf.train.latest_checkpoint("./Captions/training_checkpoints_11_01_19") 
+
+    model = build_model(vocab_size, embedding_dim = 256, rnn_units = 1024, batch_size=1)
+
+    model.load_weights(tf.train.latest_checkpoint("./Captions/training_checkpoints_"))
+
+    model.build(tf.TensorShape([1, None]))
+
+    model.summary()
+
+    print(generate_text(model, start_string=u"Olá ", char2idx = char2idx, idx2char = idx2char))
