@@ -158,25 +158,15 @@ def build_model(vocab_size, embedding_dim, rnn_units, batch_size):
 def loss(labels, logits):
     return tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
 
-def Get_Model(posts_dir, captions_path, vocab_dir, checkpoint_dir):
+def Get_Model(posts_dir, captions_path, vocab_dir, checkpoint_dir, epochs, model_path):
 
     GetCaptions(posts_dir, captions_path)
 
     model, dataset, idx2char, char2idx, vocab_size = Create_Model(captions_path, 50, vocab_dir = vocab_dir)
 
-    train_model(model, dataset, EPOCHS = 10, checkpoint_dir = checkpoint_dir, vocab_dir = vocab_dir)
+    train_model(model, dataset, EPOCHS = epochs, checkpoint_dir = checkpoint_dir, vocab_dir = vocab_dir)
 
-    tf.train.latest_checkpoint(checkpoint_dir) 
-
-    model = build_model(vocab_size, embedding_dim = 256, rnn_units = 1024, batch_size=1)
-
-    model.load_weights(tf.train.latest_checkpoint(checkpoint_dir))
-
-    model.build(tf.TensorShape([1, None]))
-
-    model.summary()
-
-    print(generate_text(model, start_string=u"Olá ", char2idx = char2idx, idx2char = idx2char))
+    model.save_weights(model_path)
 
 if __name__ == "__main__":
     from Generate_Caption import generate_text, import_mapping
