@@ -1,8 +1,5 @@
 """
-Shows basic usage of the Photos v1 API.
-
-Creates a Photos v1 API service and prints the names and ids of the last 10 albums
-the user has access to.
+This Script handles all the downloads from google photos
 """
 from __future__ import print_function
 from googleapiclient.discovery import build
@@ -20,7 +17,7 @@ def Setup_API():
 
     return service
 
-def get_media_items(page_token = None):
+def Get_Media_Items(page_token = None):
     """Get list of all Google Photos media items"""
 
     service = Setup_API()
@@ -28,10 +25,10 @@ def get_media_items(page_token = None):
     items = result.get("mediaItems", [])
 
     try:
-        return items + get_media_items(page_token=result["nextPageToken"])
+        return items + Get_Media_Items(page_token=result["nextPageToken"])
     except: return items
 
-def get_media_items_from_album(album_id, page_token = None):
+def Get_media_Items_From_Album(album_id, page_token = None):
     """Get list all of the photos in Google Photos album"""
 
     service = Setup_API()
@@ -40,30 +37,75 @@ def get_media_items_from_album(album_id, page_token = None):
     items = result.get("mediaItems", [])
 
     try:
-        return items + get_media_items_from_album(album_id, page_token=result["nextPageToken"])
+        return items + Get_media_Items_From_Album(album_id, page_token=result["nextPageToken"])
     except: return items
 
 def Add_to_Blacklist(items):
+    """"Adds media ids to blacklist"""
+
     with open("./Images/Blacklist.txt","w") as Blacklist:
         for item in items:
             Blacklist.write(str(item)+"\n")
 
-def List_Albums(page_token = None):
+def Get_Albums(page_token = None):
+    """Get list of all Google Photos albums"""
+
     service = Setup_API()
-    results = service.albums().list(pageSize=50, pageToken=page_token).execute()
+    results = service.albums().list(pageSize=50, pageToken=page_token, fields="nextPageToken,albums(id,title)").execute()
     items = results.get("albums", [])
-    if not items:
-        print("No albums found.")
-    else:
-        print("Albums:")
-        for item in items:
-            print("{0} ({1})".format(item["title"], item["id"]))
     
-    try: List_Albums(page_token=results[nextPageToken])
-    except:pass
+    try:
+        return items + Get_Albums(page_token=result["nextPageToken"])
+    except: return items
+
+def Filter_Albums(albums, keywords):
+    """Gets albums that start with key words"""
+
+    items = []
+
+    for album in albums:
+        if album["title"].startswith(keywords):
+            items.append(album)
+    
+    return items
 
 def Blacklist_Albums(Albums):
-    blacklist_items = []
-    for album in Albums: blacklist_items.append(get_media_items_from_album(album))
+    """Adds all items off albums to the blacklist"""
 
-    Add_to_Blacklist(Blacklist_Albums)
+    blacklist_items = []
+    for album in Albums: blacklist_items += Get_media_Items_From_Album(album["id"])
+
+    blacklist_ids = []
+    for item in blacklist_items:
+        print(item)
+        blacklist_ids.append(item["id"])
+
+    Add_to_Blacklist(blacklist_ids)
+
+def Blacklist_from_keywords(keywords):
+    """Adds albums that start with keywords to blacklist"""
+
+    Albums = Filter_Albums(Get_Albums(), keywords)
+    Blacklist_Albums(Albums)
+
+def List_Valid_Photos():
+    """Gets a list of all photos not in blacklist"""
+
+    Blacklist = []
+    with open("./Images/Blacklist.txt","r") as file:
+        for line in file: Blacklist.append(line)
+
+    items = Get_Media_Items()
+
+    for item in items:
+        if item["id"] in Blacklist: items.remove(item)
+
+    return items
+
+
+if __name__=="__main__":
+
+    a = open("a.txt","w")
+
+    for item in List_Valid_Photos():
+        a.write(item["id"])
