@@ -5,6 +5,9 @@ from __future__ import print_function
 from googleapiclient.discovery import build
 from httplib2 import Http
 from oauth2client import file, client, tools
+import random
+import sys
+import requests
 
 def Setup_API():
     SCOPES = "https://www.googleapis.com/auth/photoslibrary.readonly"
@@ -102,10 +105,30 @@ def List_Valid_Photos():
 
     return items
 
+def Download_Photos(photos=[]):
+    """Download photos from Google Photos"""
 
-if __name__=="__main__":
+    output = []
 
-    a = open("a.txt","w")
+    length = len(photos)
+    for i, photo in enumerate(photos):
+        sys.stdout.write('\r')
+        sys.stdout.write('downloading: %s/%s' % (i+1, length))
+        sys.stdout.flush()
+        url = photo['baseUrl']
+        r = requests.get(url)
+        if r.status_code == 200:
+            with open("./Images/" + photo['filename'], 'wb') as f:
+                for chunk in r.iter_content(1024*2014):
+                    f.write(chunk)
+            output.append(photo['filename'])
+        else:
+            return 1
+    sys.stdout.write('\n')
+    sys.stdout.flush()
+    return output
 
-    for item in List_Valid_Photos():
-        a.write(item["id"])
+def Download_Random_Photo(photo_list):
+    """Download random photo from a list"""
+
+    return Download_Photos([random.choice(photo_list)])
