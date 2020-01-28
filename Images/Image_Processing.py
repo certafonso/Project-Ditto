@@ -1,7 +1,6 @@
 from matplotlib.image import imread, imsave
 import numpy as np
 import os
-import csv
 import sys
 
 def ProcessData(path, output = "./Images/DataSet.csv"):
@@ -12,7 +11,7 @@ def ProcessData(path, output = "./Images/DataSet.csv"):
         if filename.endswith(".jpg"):
             images.append(path + filename)
 
-    dataset = [["Mean Value", "Mean Saturation", "Mean Value"]]
+    dataset = [[],[],[]]
 
     length = len(images)
     for i, image in enumerate(images):
@@ -20,16 +19,25 @@ def ProcessData(path, output = "./Images/DataSet.csv"):
         sys.stdout.write('Processing: %s/%s (%s)' % (i+1, length, image))
         sys.stdout.flush()
 
-        dataset.append(ProcessImage(OpenHSV(image)))
+        mean_Hue, mean_Saturation, mean_Value = ProcessImage(OpenHSV(image))
+
+        dataset[0].append(mean_Hue)
+        dataset[1].append(mean_Saturation)
+        dataset[2].append(mean_Value)
+
     sys.stdout.write('\n')
     sys.stdout.flush()
     print("Done processing")
 
+    properties = [[],[],[]]
+    for i in range(0,3):
+        mean = sum(dataset[i])/len(dataset[i]) # Calculates mean
+        std = np.std(dataset[i]) #calculates standart deviation
+        properties[i] = [mean, std]
+
     with open(output, "w") as file:
-        writer = csv.writer(file)
-        for row in dataset:
-            writer.writerow(row)
-    print("CSV created")
+        for line in properties:
+            file.write(str(line[0]) + "," + str(line[1]) + ",\n")
 
 def OpenHSV(image_path):
     """Opens image and converts to HSV"""
@@ -57,9 +65,7 @@ def ProcessImage(image_HSV):
     properties[1] /= pixel_count #calculates mean saturation
     properties[2] /= pixel_count #calculates mean value
 
-    # properties.append(CalculateRMSContrast(image_HSV, properties[2], pixel_count)) # calculate RMS Contrast
-
-    return properties
+    return properties[0], properties[1], properties[2]
 
 def RGBtoHSV(image):
     """Converts RGB image to HSV"""
@@ -154,50 +160,32 @@ def CalculateRMSContrast(image_HSV, mean_value, pixel_count):
 def EditImage(image_path, dataset_path = "./Images/DataSet.csv"):
     """Edits image so it's ready to publish"""
 
-    dataset = [[],[],[]]
-    with open(dataset_path, "r") as dataset_file:
-        dataset_reader = csv.reader(dataset_file)
-        line_count = 0
-        for row in dataset_reader:
-            if len(row) > 1:
-                if line_count != 0:
-                    for i in range(0,len(dataset)):
-                        dataset[i].append(float(row[i]))
-                line_count += 1
-        print(f'Processed {line_count} lines.')
-
-    #calculates average of all properties
-    mean_Hue = sum(dataset[0])/len(dataset[0])
-    mean_Saturation = sum(dataset[1])/len(dataset[1])
-    mean_Value = sum(dataset[2])/len(dataset[2])
+    dataset = ReadData(dataset_path)
     
     image = imread(image_path)  # opens image
 
     # converts image to HSV
     image_HSV = RGBtoHSV(image)
-    
-    for i in range(0,1):
-        Properties = ProcessImage(image_HSV)
+    Properties = ProcessImage(image_HSV)
 
-        # Calculates loss
-        loss_Hue = Properties[0] - mean_Hue
-        loss_Saturation = Properties[1] - mean_Saturation
-        loss_Value = Properties[2] - mean_Value
+    # Calculates loss
+    loss_Hue = Properties[0] - np.random.normal(loc=dataset[0][0],scale=dataset[0][1]/10)
+    loss_Saturation = Properties[1] - np.random.normal(loc=dataset[1][0],scale=dataset[1][1]/10)
+    loss_Value = Properties[2] - np.random.normal(loc=dataset[2][0],scale=dataset[2][1]/10)
 
-        print(mean_Hue,mean_Saturation,mean_Value)
-        print(loss_Hue,loss_Saturation,loss_Value)
+    print(dataset[0][0],dataset[1][0],dataset[2][0])
+    print(Properties[0],Properties[1],Properties[2])
+    print(loss_Hue,loss_Saturation,loss_Value)
 
-        Variation = np.zeros(image_HSV.shape)
+    Variation = np.zeros(image_HSV.shape)
 
-        for i in range(0, image_HSV.shape[0]):
-            for j in range(0, image_HSV.shape[1]):
-                Variation[i][j][0] = loss_Hue
-                Variation[i][j][1] = loss_Saturation
-                Variation[i][j][2] = loss_Value
+    for i in range(0, image_HSV.shape[0]):
+        for j in range(0, image_HSV.shape[1]):
+            Variation[i][j][0] = loss_Hue
+            Variation[i][j][1] = loss_Saturation
+            Variation[i][j][2] = loss_Value
 
-        image_HSV += Variation
-
-        print(image_HSV)
+    image_HSV += Variation
 
     
     # Makes sure everything stays within bounds
@@ -212,15 +200,25 @@ def EditImage(image_path, dataset_path = "./Images/DataSet.csv"):
             if image_HSV[i][j][2] > 1: image_HSV[i][j][2] = 1
             elif image_HSV[i][j][2] < 0: image_HSV[i][j][2] = 0
 
-    print(image_HSV)
-
     image_RGB = HSVtoRGB(image_HSV)
 
-    imsave("editado.jpg",image_RGB)
+    imsave(image_path + "_edited.jpg",image_RGB)
+
+def ReadData(dataset_path):
+    """Reads dataset from file"""
+
+    dataset = []
+    with open(dataset_path, "r") as dataset_file:
+        for line in dataset_file:
+            data = line.split(sep=",")
+            for i in range(0,2):
+                data[i] = float(data[i])
+
+            dataset.append(data[0:2])
+
+    return dataset
 
 if __name__ == "__main__":
     # ProcessData("./certafonso/")
 
     EditImage("./Images/IMG_9037.JPG")
-
-    # imsave("editado.jpg",HSVtoRGB(RGBtoHSV(imread("./Images/IMG_9037.JPG"))))
