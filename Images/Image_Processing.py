@@ -169,7 +169,7 @@ def EditImage(image_path, dataset_path = "./Images/DataSet.csv"):
     Properties = ProcessImage(image_HSV)
 
     # Calculates loss
-    loss_Hue = Properties[0] - np.random.normal(loc=dataset[0][0],scale=dataset[0][1]/10)
+    # loss_Hue = Properties[0] - np.random.normal(loc=dataset[0][0],scale=dataset[0][1]/10)
     loss_Saturation = Properties[1] - np.random.normal(loc=dataset[1][0],scale=dataset[1][1]/10)
     loss_Value = Properties[2] - np.random.normal(loc=dataset[2][0],scale=dataset[2][1]/10)
 
@@ -217,8 +217,3 @@ def ReadData(dataset_path):
             dataset.append(data[0:2])
 
     return dataset
-
-if __name__ == "__main__":
-    # ProcessData("./certafonso/")
-
-    EditImage("./Images/IMG_9037.JPG")
