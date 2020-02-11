@@ -49,19 +49,20 @@ def Get_media_Items_From_Album(album_id, page_token = None):
 def Add_to_Blacklist(items):
     """"Adds media ids to blacklist"""
 
-    with open("./Images/Blacklist.txt","w") as Blacklist:
+    with open("./Images/Blacklist.txt","a") as Blacklist:
         for item in items:
             Blacklist.write(str(item)+"\n")
 
-def Get_Albums(page_token = None):
+def Get_Albums(page_token = None, one_page = False):
     """Get list of all Google Photos albums"""
 
     service = Setup_API()
     results = service.albums().list(pageSize=50, pageToken=page_token, fields="nextPageToken,albums(id,title)").execute()
     items = results.get("albums", [])
     
+    if one_page: return items, results["nextPageToken"]
     try:
-        return items + Get_Albums(page_token=result["nextPageToken"])
+        return items + Get_Albums(page_token=results["nextPageToken"])
     except: return items
 
 def Filter_Albums(albums, keywords):
@@ -70,8 +71,10 @@ def Filter_Albums(albums, keywords):
     items = []
 
     for album in albums:
-        if album["title"].startswith(keywords):
-            items.append(album)
+        for keyword in keywords:
+            if album["title"].startswith(keyword):
+                items.append(album)
+                break
     
     return items
 
@@ -83,7 +86,6 @@ def Blacklist_Albums(Albums):
 
     blacklist_ids = []
     for item in blacklist_items:
-        print(item)
         blacklist_ids.append(item["id"])
 
     Add_to_Blacklist(blacklist_ids)
@@ -120,30 +122,56 @@ def Import_Blacklist(path = "./Images/Blacklist.txt"):
 
     return Blacklist
 
-def Import_Valid_Photos(path = "./Images/Valid_photos.json"):
-    """Imports valid photos from JSON file"""
+def Import_JSON(path):
+    """Imports JSON file"""
 
-    with open(path, "r") as photo_file:
-        valid_photos = json.load(photo_file)
+    with open(path, "r") as json_file:
+        item = json.load(json_file)
 
-    return valid_photos
+    return item
 
 def Save_Valid_Photos():
     """Saves valid photos to json"""
 
-    Save_Photos(List_Valid_Photos(), "./Images/Valid_photos.json")
+    Save_JSON(List_Valid_Photos(), "./Images/Valid_photos.json")
 
-def Save_Photos(photo_list, path):
-    """Saves photos to a JSON file"""
+def Save_JSON(content, path):
+    """Saves to a JSON file"""
 
     with open(path, "w") as f:
-        json.dump(photo_list, f)
+        json.dump(content, f)
 
-def Check_New_Photos(photofile = "./Images/Valid_photos.json"):
-    """Checks if there is new photos in google photos and saves them to the json file"""
+def Check_New_Albums(keywords, albumfile = "./Images/Albums.json"):
+    """Checks if there is new albums in google photos, saves them to the json file and blacklist them if necessary"""
 
     next_page_token = None
-    valid_photos = Import_Valid_Photos()
+    albums = Import_JSON(albumfile)
+    new_albums = []
+    done = False
+    items = []
+
+    while not done:
+        new_albums += items
+        items, next_page_token = Get_Albums(page_token=next_page_token, one_page=True)
+        for i in range(0, len(items)):
+            if items[i]["id"] != albums[0]["id"]: # detects albums not in list
+                new_albums.append(items[i])
+            else: #detects first album of list
+                done = True
+                break
+
+    if new_albums != []:
+        #Blacklists albums with the keywords
+        Blacklist_Albums(Filter_Albums(new_albums, keywords))
+
+        #Saves albums
+        Save_JSON(new_albums + albums, albumfile)
+
+def Check_New_Photos(photofile = "./Images/Valid_photos.json"):
+    """Checks if there is new phoyos in google photos and saves them to the json file"""
+
+    next_page_token = None
+    valid_photos = Import_JSON(photofile)
     new_valid_photos = []
     done = False
     items = []
@@ -163,7 +191,7 @@ def Check_New_Photos(photofile = "./Images/Valid_photos.json"):
     if new_valid_photos != []:
         valid_photos = Remove_Blacklisted(new_valid_photos+valid_photos, blacklist)
 
-        Save_Photos(valid_photos, photofile)
+        Save_JSON(valid_photos, photofile)
 
 def Download_Photos(photos=[]):
     """Download photos from Google Photos"""
@@ -193,5 +221,4 @@ def Download_Random_Photo(photo_list):
 
     photo = random.choice(photo_list)
     return Download_Photos([photo]), photo["id"]
-
-Check_New_Photos()
+    
