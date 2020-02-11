@@ -43,15 +43,15 @@ def generate_caption(model, char2idx, idx2char, temperature = 1):
   Generating a caption from a model
   """
 
-  words = []
+  # words = []
 
-  # Loads all words from captions
-  with open("./Captions/Captions.txt", "r", encoding="utf8") as captions:
-    for line in captions:
-      words += line.split(sep=" ")
+  # # Loads all words from captions
+  # with open("./Captions/Captions.txt", "r", encoding="utf8") as captions:
+  #   for line in captions:
+  #     words += line.split(sep=" ")
   
   # Generates text
-  Generated_string = generate_text(model, start_string=choice(words), char2idx = char2idx, idx2char = idx2char, temperature = temperature)
+  Generated_string = generate_text(model, start_string="§", char2idx = char2idx, idx2char = idx2char, temperature = temperature)
 
   print(Generated_string)
 
@@ -76,12 +76,6 @@ def import_mapping(file_dir):
 if __name__ == "__main__":
   vocab_size, char2idx, idx2char = import_mapping('./Captions/vocab.txt')
 
-  model = build_model(vocab_size, embedding_dim = 256, rnn_units = 1024, batch_size=1)
+  model = tf.keras.models.load_model('./Captions/CaptionRNN_v1.h5')
 
-  model.load_weights(tf.train.latest_checkpoint('./Captions/training_checkpoints_24_01_19'))
-
-  model.build(tf.TensorShape([1, None]))
-
-  model.summary()
-
-  print(generate_caption(model, char2idx = char2idx, idx2char = idx2char, temperature = 1))
+  print(generate_caption(model, char2idx = char2idx, idx2char = idx2char, temperature = 1.25))

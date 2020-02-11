@@ -2,19 +2,22 @@ import os
 import numpy as np
 import tensorflow as tf
 
-def GetCaptions(posts_dir, captions_path):
+def Get_Captions(posts_dir, captions_path):
     captions = []
     for filename in os.listdir(posts_dir):
         if filename.endswith(".txt"):
             with open(posts_dir + filename, "r", encoding="utf8") as file:
+                caption = ""
                 for line in file:
-                    captions.append(line)
+                    caption += line
+                captions.append(caption)
+    print(captions)
 
     with open(captions_path,"w+", encoding="utf8") as file:
         for caption in captions:
-            file.write(caption + "\n")
+            file.write(caption + "§") #§ simbolizes end of post
 
-def Create_Model(source, seq_length, vocab_dir = './vocab.txt'):
+def Create_Model(source, seq_length = 50, vocab_dir = './vocab.txt'):
 
     text = open(source, 'rb').read().decode(encoding='utf-8') #Reads file and decodes it
 
@@ -34,7 +37,7 @@ def Create_Model(source, seq_length, vocab_dir = './vocab.txt'):
     text_as_int = np.array([char2idx[c] for c in text])
 
     print('{')
-    for char,_ in zip(char2idx, range(20)):
+    for char,_ in zip(char2idx, range(10)):
         print('  {:4s}: {:3d},'.format(repr(char), char2idx[char]))
     print('  ...\n}')
 
@@ -160,7 +163,7 @@ def loss(labels, logits):
 
 def Get_Model(posts_dir, captions_path, vocab_dir, checkpoint_dir, epochs, model_path):
 
-    GetCaptions(posts_dir, captions_path)
+    Get_Captions(posts_dir, captions_path)
 
     model, dataset, idx2char, char2idx, vocab_size = Create_Model(captions_path, 50, vocab_dir = vocab_dir)
 
@@ -171,13 +174,15 @@ def Get_Model(posts_dir, captions_path, vocab_dir, checkpoint_dir, epochs, model
 if __name__ == "__main__":
     from Generate_Caption import generate_text, import_mapping
 
-    GetCaptions("./certafonso", "./Captions/Captions.txt")
+    # Get_Captions("./certafonso/", "./Captions/Captions.txt")
 
-    model, dataset, idx2char, char2idx, vocab_size = Create_Model("./Captions/Captions.txt", 50)
+    model, dataset, idx2char, char2idx, vocab_size = Create_Model("./Captions/Captions.txt")
 
-    train_model(model, dataset, EPOCHS = 10, checkpoint_dir = "./Captions/training_checkpoints_", vocab_dir = "./vocab.txt")
+    model.load_weights(tf.train.latest_checkpoint("./Captions/training_checkpoints_24_01_19"))
 
-    tf.train.latest_checkpoint("./Captions/training_checkpoints_11_01_19") 
+    train_model(model, dataset, EPOCHS = 2000, checkpoint_dir = "./Captions/training_checkpoints_", vocab_dir = "./Captions/vocab.txt")
+
+    # tf.train.latest_checkpoint("./Captions/training_checkpoints_11_01_19") 
 
     model = build_model(vocab_size, embedding_dim = 256, rnn_units = 1024, batch_size=1)
 
