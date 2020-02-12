@@ -2,16 +2,22 @@ from matplotlib.image import imread, imsave
 import numpy as np
 import os
 import sys
+import json
 
-def ProcessData(path, output = "./Images/DataSet.csv"):
-    """Processes all photos of a directory and saves the result to a csv"""
-    
+def GetImages(path):
+    """gets path to all images in directory"""
+
     images = []
-    for filename in os.listdir(path): # gets path to all images in directory
+    for filename in os.listdir(path):
         if filename.endswith(".jpg"):
             images.append(path + filename)
 
-    dataset = [[],[],[]]
+    return images
+
+def ProcessData(images):
+    """Processes photos and returns a json"""
+
+    dataset = []
 
     length = len(images)
     for i, image in enumerate(images):
@@ -21,23 +27,82 @@ def ProcessData(path, output = "./Images/DataSet.csv"):
 
         mean_Hue, mean_Saturation, mean_Value = ProcessImage(OpenHSV(image))
 
-        dataset[0].append(mean_Hue)
-        dataset[1].append(mean_Saturation)
-        dataset[2].append(mean_Value)
+        dataset.append({"Filename": image,
+                        "mean_Hue": mean_Hue,
+                        "mean_Saturation": mean_Saturation,
+                        "mean_Value": mean_Value})
 
     sys.stdout.write('\n')
     sys.stdout.flush()
     print("Done processing")
 
-    properties = [[],[],[]]
-    for i in range(0,3):
-        mean = sum(dataset[i])/len(dataset[i]) # Calculates mean
-        std = np.std(dataset[i]) #calculates standart deviation
-        properties[i] = [mean, std]
+    return dataset
 
-    with open(output, "w") as file:
-        for line in properties:
-            file.write(str(line[0]) + "," + str(line[1]) + ",\n")
+def ProcessNewData(path, dataset_dir = "./Images/DataSet.json"):
+    """Processes new images at a directory and saves them to a json file"""
+    
+    images = GetImages(path)
+    dataset = Import_JSON(dataset_dir)
+
+    for i in range(len(images)-1, -1, -1):
+        if images[i] == dataset["images"][-1]["Filename"]: # detects first image in dataset
+            try:
+                dataset["images"] += ProcessData(images[i+1:len(images)])
+
+                Save_JSON(CalculateMean(dataset), dataset_dir)
+
+                break
+            except:
+                print("except")
+                break
+
+def CreateDataSet(path, dataset_dir = "./Images/DataSet.json"):
+    """Creates a new dataset from a path"""
+
+    images = GetImages(path)
+
+    dataset = {"Hue": {"mean": 0, "std": 0},
+               "Saturation": {"mean": 0, "std": 0},
+               "Value": {"mean": 0, "std": 0},
+               "images": ProcessData(images)}
+
+    dataset = CalculateMean(dataset)
+    
+    Save_JSON(dataset, dataset_dir)
+
+def CalculateMean(dataset):
+    """Calculates mean and standart deviation of all attributes"""
+
+    # puts all attributes in lists
+    Hues = [d["mean_Hue"] for d in dataset["images"]]
+    Saturations = [d["mean_Saturation"] for d in dataset["images"]]
+    Values = [d["mean_Value"] for d in dataset["images"]]
+
+    # calculates means
+    dataset["Hue"]["mean"] = sum(Hues) / len(Hues)
+    dataset["Saturation"]["mean"] = sum(Saturations) / len(Saturations)
+    dataset["Value"]["mean"] = sum(Values) / len(Values)
+
+    # calculates standart deviations
+    dataset["Hue"]["std"] = np.std(Hues)
+    dataset["Saturation"]["std"] = np.std(Saturations)
+    dataset["Value"]["std"] = np.std(Values)
+
+    return dataset
+
+def Import_JSON(path):
+    """Imports JSON file"""
+
+    with open(path, "r") as json_file:
+        item = json.load(json_file)
+
+    return item
+
+def Save_JSON(content, path):
+    """Saves to a JSON file"""
+
+    with open(path, "w") as f:
+        json.dump(content, f)
 
 def OpenHSV(image_path):
     """Opens image and converts to HSV"""
@@ -157,10 +222,10 @@ def CalculateRMSContrast(image_HSV, mean_value, pixel_count):
     RMS_Contrast = (RMS_Contrast/pixel_count)**(1/2) #does the root and mean part
     return RMS_Contrast
 
-def EditImage(image_path, dataset_path = "./Images/DataSet.csv"):
+def EditImage(image_path, dataset_path = "./Images/DataSet.json"):
     """Edits image so it's ready to publish"""
 
-    dataset = ReadData(dataset_path)
+    dataset = Import_JSON(dataset_path)
     
     image = imread(image_path)  # opens image
 
@@ -169,19 +234,15 @@ def EditImage(image_path, dataset_path = "./Images/DataSet.csv"):
     Properties = ProcessImage(image_HSV)
 
     # Calculates loss
-    # loss_Hue = Properties[0] - np.random.normal(loc=dataset[0][0],scale=dataset[0][1]/10)
-    loss_Saturation = Properties[1] - np.random.normal(loc=dataset[1][0],scale=dataset[1][1]/10)
-    loss_Value = Properties[2] - np.random.normal(loc=dataset[2][0],scale=dataset[2][1]/10)
-
-    print(dataset[0][0],dataset[1][0],dataset[2][0])
-    print(Properties[0],Properties[1],Properties[2])
-    print(loss_Hue,loss_Saturation,loss_Value)
+    # loss_Hue = Properties[0] - np.random.normal(loc=dataset["Hue"]["mean"],scale=dataset["Hue"]["std"]/10)
+    loss_Saturation = Properties[1] - np.random.normal(loc=dataset["Saturation"]["mean"],scale=dataset["Saturation"]["std"]/10)
+    loss_Value = Properties[2] - np.random.normal(loc=dataset["Value"]["mean"],scale=dataset["Value"]["std"]/10)
 
     Variation = np.zeros(image_HSV.shape)
 
     for i in range(0, image_HSV.shape[0]):
         for j in range(0, image_HSV.shape[1]):
-            Variation[i][j][0] = loss_Hue
+            # Variation[i][j][0] = loss_Hue
             Variation[i][j][1] = loss_Saturation
             Variation[i][j][2] = loss_Value
 
@@ -203,17 +264,3 @@ def EditImage(image_path, dataset_path = "./Images/DataSet.csv"):
     image_RGB = HSVtoRGB(image_HSV)
 
     imsave(image_path + "_edited.jpg",image_RGB)
-
-def ReadData(dataset_path):
-    """Reads dataset from file"""
-
-    dataset = []
-    with open(dataset_path, "r") as dataset_file:
-        for line in dataset_file:
-            data = line.split(sep=",")
-            for i in range(0,2):
-                data[i] = float(data[i])
-
-            dataset.append(data[0:2])
-
-    return dataset
