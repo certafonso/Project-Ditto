@@ -38,26 +38,21 @@ def generate_text(model, start_string, char2idx, idx2char, temperature = 1):
 
   return (start_string + ''.join(text_generated))
 
-def generate_caption(model, char2idx, idx2char, temperature = 1):
+def generate_caption(model_path = './Captions/CaptionRNN_v1.h5', mapping_path = './Captions/vocab.txt', temperature = 1.25):
   """
   Generating a caption from a model
   """
 
-  # words = []
+  vocab_size, char2idx, idx2char = import_mapping('./Captions/vocab.txt')
 
-  # # Loads all words from captions
-  # with open("./Captions/Captions.txt", "r", encoding="utf8") as captions:
-  #   for line in captions:
-  #     words += line.split(sep=" ")
+  model = tf.keras.models.load_model('./Captions/CaptionRNN_v1.h5')
   
   # Generates text
   Generated_string = generate_text(model, start_string="§", char2idx = char2idx, idx2char = idx2char, temperature = temperature)
 
-  print(Generated_string)
-
   Captions = Generated_string.split(sep="§")[1:-1] #Separate all different captions generated (first and last are not counted)
 
-  return choice(Captions)
+  return Captions
 
 def import_mapping(file_dir):
   """
@@ -72,10 +67,3 @@ def import_mapping(file_dir):
   vocab_size = len(vocab)
   char2idx, idx2char = mapping(vocab)
   return vocab_size, char2idx, idx2char
-
-if __name__ == "__main__":
-  vocab_size, char2idx, idx2char = import_mapping('./Captions/vocab.txt')
-
-  model = tf.keras.models.load_model('./Captions/CaptionRNN_v1.h5')
-
-  print(generate_caption(model, char2idx = char2idx, idx2char = idx2char, temperature = 1.25))
