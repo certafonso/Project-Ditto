@@ -49,9 +49,11 @@ def Get_media_Items_From_Album(album_id, page_token = None):
 def Add_to_Blacklist(items):
     """"Adds media ids to blacklist"""
 
-    with open("./Images/Blacklist.txt","a") as Blacklist:
-        for item in items:
-            Blacklist.write(str(item)+"\n")
+    Blacklist = Import_JSON("./Images/Blacklist.json")
+
+    Blacklist += items
+
+    Save_JSON(Blacklist, "./Images/Blacklist.json")
 
 def Get_Albums(page_token = None, one_page = False):
     """Get list of all Google Photos albums"""
@@ -99,7 +101,7 @@ def Blacklist_from_keywords(keywords):
 def List_Valid_Photos():
     """Gets a list of all photos not in blacklist"""
 
-    Blacklist = Import_Blacklist()
+    Blacklist = Import_JSON("./Images/Blacklist.json")
 
     items = Get_Media_Items()
 
@@ -112,15 +114,6 @@ def Remove_Blacklisted(photo_list, Blacklist):
         if item["id"] in Blacklist: photo_list.remove(item)
 
     return photo_list
-
-def Import_Blacklist(path = "./Images/Blacklist.txt"):
-    """Imports blacklist from file"""
-
-    Blacklist = []
-    with open(path,"r") as file:
-        for line in file: Blacklist.append(line)
-
-    return Blacklist
 
 def Import_JSON(path):
     """Imports JSON file"""
@@ -186,7 +179,7 @@ def Check_New_Photos(photofile = "./Images/Valid_photos.json"):
                 done = True
                 break
 
-    blacklist = Import_Blacklist()
+    blacklist = Import_JSON("./Images/Blacklist.json")
 
     if new_valid_photos != []:
         valid_photos = Remove_Blacklisted(new_valid_photos+valid_photos, blacklist)
@@ -204,12 +197,13 @@ def Download_Photos(photos=[]):
         sys.stdout.write('downloading: %s/%s' % (i+1, length))
         sys.stdout.flush()
         url = photo['baseUrl']
+        print(photo)
         r = requests.get(url)
         if r.status_code == 200:
             with open("./Images/" + photo['filename'], 'wb') as f:
                 for chunk in r.iter_content(1024*2014):
                     f.write(chunk)
-            output.append(photo['filename'])
+            output.append("./Images/" + photo['filename'])
         else:
             return 1
     sys.stdout.write('\n')
@@ -221,4 +215,7 @@ def Download_Random_Photo(photo_list):
 
     photo = random.choice(photo_list)
     return Download_Photos([photo]), photo["id"]
-    
+
+
+Setup_API()
+print(Download_Random_Photo(Import_JSON("./Images/Valid_photos.json")))
