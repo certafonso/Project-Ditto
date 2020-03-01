@@ -1,5 +1,5 @@
 import tensorflow as tf
-from Create_Model import mapping, build_model
+from Captions.Create_Model import mapping, build_model
 from random import choice
 
 def generate_text(model, start_string, char2idx, idx2char, temperature = 1):

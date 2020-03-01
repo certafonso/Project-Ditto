@@ -186,6 +186,16 @@ def Check_New_Photos(photofile = "./Images/Valid_photos.json"):
 
         Save_JSON(valid_photos, photofile)
 
+def Get_BaseURL(photo):
+    """Get BaseURL of a photo"""
+
+    service = Setup_API()
+    result = service.mediaItems().get(mediaItemId=photo["id"]).execute()
+
+    print(result["baseUrl"])
+
+    return result["baseUrl"]
+
 def Download_Photos(photos=[]):
     """Download photos from Google Photos"""
 
@@ -196,8 +206,7 @@ def Download_Photos(photos=[]):
         sys.stdout.write('\r')
         sys.stdout.write('downloading: %s/%s' % (i+1, length))
         sys.stdout.flush()
-        url = photo['baseUrl']
-        print(photo)
+        url = Get_BaseURL(photo) + "=w1080-h1350"
         r = requests.get(url)
         if r.status_code == 200:
             with open("./Images/" + photo['filename'], 'wb') as f:
@@ -215,7 +224,3 @@ def Download_Random_Photo(photo_list):
 
     photo = random.choice(photo_list)
     return Download_Photos([photo]), photo["id"]
-
-
-Setup_API()
-print(Download_Random_Photo(Import_JSON("./Images/Valid_photos.json")))
