@@ -99,6 +99,8 @@ def CreatePost():
 
     Image_Processing.EditImage(post["Image"]["Original"])
 
+    AddToPostHistory(post)
+
     return post
 
 def SendPost(post):
@@ -133,8 +135,6 @@ def SendPost(post):
                                     config["Control Email"]["receiver"],
                                     sub,
                                     msg)
-
-        AddToPostHistory(post)
     except Exception as ex:
         NotifyError("SendPost", ex)
 
@@ -203,6 +203,22 @@ def AddCaptions(postid):
 
         SendPost(History[postid])
 
+def ForcePost():
+    """Creates a new post and sends it"""
+
+    History = Google_Photos.Import_JSON("./PostHistory.json")
+
+    if History[-1]["Published"]: # if last post was published creates a new one
+        post = CreatePost()
+
+        AddToPostHistory(post)
+    else: # if not, resends last one
+        post = History[-1]
+
+    SendPost(post)
+
+    config["Times"]["Next Post"] = t + config["Times"]["Post period"]
+
 def CheckCommands():
     """Executes new commands. Returns the executed command"""
 
@@ -252,6 +268,9 @@ def CheckCommands():
                 Last_post = Google_Photos.Import_JSON("./PostHistory.json")[-1]
                 SendPost(Last_post)
 
+            elif command["Command"] == "Forcepost":
+                ForcePost()
+
         CommandLog.append(command)
 
         Google_Photos.Save_JSON(CommandLog, "CommandLog.json")
@@ -276,18 +295,7 @@ if __name__ == "__main__":
             config["Times"]["Next Update"] = t + config["Times"]["Update period"]
 
         if t >= config["Times"]["Next Post"]: # if time is right creates a new post
-            History = Google_Photos.Import_JSON("./PostHistory.json")
-
-            if History[-1]["Published"]: # if last post was published creates a new one
-                post = CreatePost()
-
-                AddToPostHistory(post)
-            else: # if not, resends last one
-                post = History[-1]
-
-            SendPost(post)
-
-            config["Times"]["Next Post"] = t + config["Times"]["Post period"]
+            ForcePost()
 
         SaveConfig(config)
 

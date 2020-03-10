@@ -37,7 +37,7 @@ def SendEmail(username, password, receiver, subject, message):
 
         return True
     except:
-        print("ERROR")
+        print(f"Error sending {subject} to {receiver}")
         return False
 
 def SendWithAttachment(username, password, receiver, subject, message, ImgFileName):
