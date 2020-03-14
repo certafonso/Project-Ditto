@@ -43,9 +43,9 @@ def generate_caption(model_path = './Captions/CaptionRNN_v1.h5', mapping_path = 
   Generating a caption from a model
   """
 
-  vocab_size, char2idx, idx2char = import_mapping('./Captions/vocab.txt')
+  vocab_size, char2idx, idx2char = import_mapping(mapping_path)
 
-  model = tf.keras.models.load_model('./Captions/CaptionRNN_v1.h5')
+  model = tf.keras.models.load_model(model_path)
   
   # Generates text
   Generated_string = generate_text(model, start_string="§", char2idx = char2idx, idx2char = idx2char, temperature = temperature)
