@@ -210,8 +210,6 @@ def ForcePost():
 
     if History[-1]["Published"]: # if last post was published creates a new one
         post = CreatePost()
-
-        AddToPostHistory(post)
     else: # if not, resends last one
         post = History[-1]
 
