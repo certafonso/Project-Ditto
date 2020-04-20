@@ -6,6 +6,7 @@ import instaloader
 from instaloader import Profile
 import time
 import os
+import sys
 
 def DownloadPosts(Username):
     """Download Instagram Posts"""
@@ -277,25 +278,52 @@ def CheckCommands():
     else: 
         return None
 
-if __name__ == "__main__":
-    config = LoadConfig()
+def Cycle():
+    t = time.time()
+
+    command = CheckCommands()
+
+    if command != None: NotifyCommand(command)
+
+    if t >= config["Times"]["Next Update"]: # if time is right updates data
+        UpdateData()
+
+        print("eu")
+
+        config["Times"]["Next Update"] = t + config["Times"]["Update period"]
+
+    if t >= config["Times"]["Next Post"]: # if time is right creates a new post
+        ForcePost()
+
+    SaveConfig(config)
+
+    time.sleep(1)
+
+def Server():
+    """Implements server mode"""
     
-    while True:
-        t = time.time()
+    iteration = 0
+    start_time = time.time()      
+    print("Server mode initiated at {date}".format(date = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(start_time))))
 
-        command = CheckCommands()
-
-        if command != None: NotifyCommand(command)
-
-        if t >= config["Times"]["Next Update"]: # if time is right updates data
-            UpdateData()
-
-            config["Times"]["Next Update"] = t + config["Times"]["Update period"]
-
-        if t >= config["Times"]["Next Post"]: # if time is right creates a new post
-            ForcePost()
-
-        SaveConfig(config)
-
-        time.sleep(1)
+    try:
+        while True:
+            if(iteration%100 == 0):
+                print("Server executed {cycles} cycles, has been running for {sec} seconds.".format(cycles=iteration, sec=time.time()-start_time))
             
+            Cycle()
+
+            iteration += 1
+    except KeyboardInterrupt:
+        print("Server closed at {date}, executed {cycles} cycles, has been running for {sec} seconds.".format(date = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), cycles=iteration, sec=time.time()-start_time))
+
+if __name__ == "__main__":
+    if len(sys.argv) != 1:
+        config = LoadConfig()
+
+        if sys.argv[1] == "-s":     # server mode
+            Server()
+        elif sys.argv[1] == "-c":   # 1 cycle mode
+            Cycle()
+    else:
+        print("Error: No arguments specified")
